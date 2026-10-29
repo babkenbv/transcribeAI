@@ -1,0 +1,17 @@
+# CPU-only torch: install with
+#   uv pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+torch==2.14.1+cpu
+torchaudio==2.11.1+cpu
+nemo-toolkit[asr]==3.0.0
+ctranslate2==4.8.4
+sentencepiece==0.2.2
+transformers==5.20.2  # only for converting NLLB to CTranslate2
+silero-vad==6.2.3
+sounddevice==0.5.6
+soundfile==0.14.0
+numpy==2.2.6
+
+# evaluation only
+jiwer==4.0.0
+sacrebleu==2.6.0
+faster-whisper==1.2.1
