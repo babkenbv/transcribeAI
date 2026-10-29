@@ -42,6 +42,23 @@ Measured on 60 FLEURS dev utterances (`eval/asr_eval.py`, punctuation stripped):
   "wrong regex" warning, and the direct version gives identical scores.
 - NLLB 1.3B would be ~2× slower (max ≈ 5–6 s) and break the budget. MADLAD-400 3B is larger still.
 
+### D3b. Short utterances → opus-mt-hy-en (added after the first live test)
+Live test: "Ողջույն։" → "I'm going to be a little late." NLLB invents text for 1–2 word
+input, and beam 4 doesn't fix it ("Ողջույն" → "How are you?"). FLEURS has no short phrases, so
+`eval/short_phrases.tsv` was written by hand: 36 call phrases with references. It's small and
+written by us, so treat it as indicative only. `eval/short_eval.py`, chrF:
+
+| Words | NLLB 600M | opus-mt-hy-en | routed (≤2 → opus) |
+|---|---|---|---|
+| 1 (11) | 29.1 | 61.3 | 61.3 |
+| 2 (11) | 63.6 | 82.4 | 82.4 |
+| 3+ (14) | 71.5 | 51.6 | 71.5 |
+
+opus-mt on FLEURS sentences: chrF 40.8 vs 62.3 for NLLB, so it is only used for ≤ 2 words.
+It takes ~0.02 s per phrase and ~80 MB. Both still fail on some single words
+("Ցտեսություն" → "Mr." with opus-mt, "I'll see you later" with NLLB).
+NLLB 1.3B was not tried: not enough disk space left on this laptop.
+
 ## D4. VAD + segmentation: Silero VAD, cut at pauses
 - A segment ends after 0.5 s of silence. Once longer than 4 s, a 0.2 s pause is enough.
 - At 8 s it is force-cut at the least speech-like 32 ms block in the last 2 s, and the rest

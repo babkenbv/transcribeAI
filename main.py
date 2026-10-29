@@ -24,7 +24,9 @@ def parse_args():
     ap.add_argument("--no-system", action="store_true", help="only listen to the microphone")
     ap.add_argument("--file", help="replay a 16 kHz wav in real time as the system side (for testing)")
     ap.add_argument("--asr-decoder", default="ctc", choices=["ctc", "rnnt"])
-    ap.add_argument("--mt-model", default=None, help="CTranslate2 model dir")
+    ap.add_argument("--mt-model", default=None, help="CTranslate2 model dir for normal utterances")
+    ap.add_argument("--mt-short-model", default=None,
+                    help="CTranslate2 model dir for 1-2 word utterances ('none' to use --mt-model for everything)")
     ap.add_argument("--speaker-threshold", type=float, default=None, help="cosine similarity for same speaker")
     ap.add_argument("--hide-latency", action="store_true")
     return ap.parse_args()
@@ -60,10 +62,13 @@ def main():
     from transcribe.asr import NemoASR
     from transcribe.pipeline import Pipeline
     from transcribe.speakers import OnlineClusterer, SpeakerEmbedder
-    from transcribe.translate import DEFAULT_MT_MODEL, Translator
+    from transcribe.translate import (DEFAULT_MT_MODEL, DEFAULT_SHORT_MT_MODEL, RoutedTranslator,
+                                      Translator)
 
     asr = NemoASR(decoder=args.asr_decoder)
     translator = Translator(args.mt_model or DEFAULT_MT_MODEL)
+    if args.mt_short_model != "none":
+        translator = RoutedTranslator(translator, Translator(args.mt_short_model or DEFAULT_SHORT_MT_MODEL))
     embedder = SpeakerEmbedder()
     clusterer = OnlineClusterer(**({"threshold": args.speaker_threshold} if args.speaker_threshold else {}))
     pipe = Pipeline(asr, translator, embedder, clusterer, show_latency=not args.hide_latency)

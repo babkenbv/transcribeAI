@@ -1,8 +1,9 @@
-"""Armenian → English translation with NLLB-200 in CTranslate2 (int8 on CPU).
+"""Armenian → English translation with CTranslate2 (int8 on CPU).
 
-The model is converted once with `scripts/convert_mt.sh` into models/<name>/.
-Tokenisation uses the model's SentencePiece file directly (NLLB format:
-`hye_Armn <pieces> </s>` in, `eng_Latn <pieces>` out).
+Models are converted once with `scripts/convert_mt.sh` into models/<name>/.
+Two model families are supported, recognised by their tokenizer files:
+  - NLLB-200 (`sentencepiece.bpe.model`): `hye_Armn <pieces> </s>` in, `eng_Latn <pieces>` out
+  - Marian / opus-mt (`source.spm`, `target.spm`): `<pieces> </s>` in, `<pieces>` out
 """
 from pathlib import Path
 
@@ -18,7 +19,13 @@ class Translator:
         path = Path(model_dir)
         if not (path / "model.bin").exists():
             raise FileNotFoundError(f"{path}/model.bin not found: run scripts/convert_mt.sh first")
-        self.sp = spm.SentencePieceProcessor(model_file=str(path / "sentencepiece.bpe.model"))
+        self.is_nllb = (path / "sentencepiece.bpe.model").exists()
+        if self.is_nllb:
+            self.src_sp = self.tgt_sp = spm.SentencePieceProcessor(
+                model_file=str(path / "sentencepiece.bpe.model"))
+        else:
+            self.src_sp = spm.SentencePieceProcessor(model_file=str(path / "source.spm"))
+            self.tgt_sp = spm.SentencePieceProcessor(model_file=str(path / "target.spm"))
         self.model = ctranslate2.Translator(
             str(path), device="cpu", compute_type="int8", intra_threads=threads
         )
@@ -27,9 +34,35 @@ class Translator:
     def translate(self, text: str) -> str:
         if not text.strip():
             return ""
-        tokens = [SRC_LANG] + self.sp.encode(text, out_type=str) + ["</s>"]
+        tokens = self.src_sp.encode(text, out_type=str) + ["</s>"]
+        if self.is_nllb:
+            tokens = [SRC_LANG] + tokens
         result = self.model.translate_batch(
-            [tokens], target_prefix=[[TGT_LANG]], beam_size=self.beam_size,
-            max_decoding_length=256,
+            [tokens], target_prefix=[[TGT_LANG]] if self.is_nllb else None,
+            beam_size=self.beam_size, max_decoding_length=256,
         )[0]
-        return self.sp.decode(result.hypotheses[0][1:])  # drop the eng_Latn token
+        out = result.hypotheses[0]
+        return self.tgt_sp.decode(out[1:] if self.is_nllb else out)  # drop the eng_Latn token
+
+
+DEFAULT_SHORT_MT_MODEL = "models/opus-mt-hy-en-ct2"
+
+
+class RoutedTranslator:
+    """Very short utterances → opus-mt, everything else → NLLB.
+
+    NLLB was trained on sentences and invents text for 1–2 word inputs
+    ("Ողջույն։" → "I'm going to be a little late."). opus-mt (partly trained on
+    subtitles) handles those well but is much worse on full sentences.
+    Measured in eval/short_eval.py and eval/mt_eval.py, see DECISIONS.md D3.
+    """
+
+    def __init__(self, main: Translator, short: Translator, max_short_words: int = 2):
+        self.main = main
+        self.short = short
+        self.max_short_words = max_short_words
+
+    def translate(self, text: str) -> str:
+        if len(text.split()) <= self.max_short_words:
+            return self.short.translate(text)
+        return self.main.translate(text)

@@ -7,6 +7,7 @@ These come from the requirements in the brief, not from the code.
 - [x] `eval/mt_eval.py`: chrF/BLEU on FLEURS hy→en dev reference pairs, plus seconds per sentence.
 - [x] `eval/speaker_eval.py`: synthetic stream of utterances from K LibriSpeech speakers (FLEURS has no speaker IDs).
       Check that the number of labels equals K and measure label purity.
+- [x] `eval/short_eval.py`: short conversational phrases (1–2 words must not hallucinate).
 - [x] Latency: `eval/make_conversation.py` + `main.py --file data/conversation.wav` replays a wav
       in real time through the full pipeline. Per-line latency printed: 1.3–4.2 s.
 
