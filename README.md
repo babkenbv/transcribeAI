@@ -157,4 +157,6 @@ Test checklist: [TESTS.md](TESTS.md).
 
 ## AI chat transcripts
 
-`chats/`: every session used for this project, exported unedited as Markdown.
+[`chats/`](chats/): every AI session used for this project, one Markdown file per session,
+exported with `scripts/export_chats.py`. See [chats/README.md](chats/README.md) for what is
+included and how to re-export.
